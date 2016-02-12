@@ -174,6 +174,14 @@ class PstParser {
         email.setSentDate(msg.getMessageDeliveryTime());
         email.setTextBody(msg.getBody());
         email.setHtmlBody(msg.getBodyHTML());
+        
+        if(email.getTextBody() == "" ){
+            String strHtml = msg.getBodyHTML();
+            strHtml = strHtml.replaceAll("<br>","\\n").replaceAll("<\br>","\\n").replaceAll("<p>","\\n\\n").replaceAll("</p>","");
+            strHtml = strHtml.replaceAll("\\<[^>]*>","");
+            email.setTextBody(strHtml);
+        }
+        
         String rtf = "";
         try {
             rtf = msg.getRTFBody();
@@ -220,9 +228,17 @@ class PstParser {
                 saveAttachmentToDisk(attach, outPath);
 
                 EmailMessage.Attachment attachment = new EmailMessage.Attachment();
+                
+                logger.log(Level.INFO, "extractAttachments: " + msg.getSubject() + " - File:"+filename); //NON-NLS
 
-                long crTime = attach.getCreationTime().getTime() / 1000;
-                long mTime = attach.getModificationTime().getTime() / 1000;
+                long crTime = 0;
+                if(attach.getCreationTime() != null) 
+                    crTime = attach.getCreationTime().getTime() / 1000;
+                
+                long mTime = 0;
+                if(attach.getModificationTime() != null) 
+                    mTime = attach.getModificationTime().getTime() / 1000;
+                  
                 String relPath = getRelModuleOutputPath() + File.separator + uniqueFilename;
                 attachment.setName(filename);
                 attachment.setCrTime(crTime);
@@ -266,9 +282,13 @@ class PstParser {
                 count = attachmentStream.read(buffer);
             }
 
-            byte[] endBuffer = new byte[count];
-            System.arraycopy(buffer, 0, endBuffer, 0, count);
-            out.write(endBuffer);
+            if(count != -1)
+            {
+                //the file size is NOT a multiple of bufferSize
+                byte[] endBuffer = new byte[count];
+                System.arraycopy(buffer, 0, endBuffer, 0, count);
+                out.write(endBuffer);
+            }
         }
     }
 
